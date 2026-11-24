@@ -1,13 +1,14 @@
-const CACHE = "pocketly-premium-v4";
+const CACHE = "pocketly-premium-v5";
+
 const APP_SHELL = [
   "./",
   "./index.html",
   "./app.js",
   "./manifest.webmanifest",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./icons/icon-192-maskable.png",
-  "./icons/icon-512-maskable.png"
+  "./icon-192.png",
+  "./icon-512.png",
+  "./icon-192-maskable.png",
+  "./icon-512-maskable.png"
 ];
 
 self.addEventListener("install", (event) => {
