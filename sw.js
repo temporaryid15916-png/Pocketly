@@ -1,4 +1,4 @@
-const CACHE = "pocketly-premium-v5";
+const CACHE = "pocketly-premium-v6";
 
 const APP_SHELL = [
   "./",

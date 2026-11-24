@@ -2,17 +2,23 @@
   "name": "POCKETLY — Smart Money. Better Life.",
   "short_name": "POCKETLY",
   "description": "A private, offline-first personal money manager. Track income, expenses, budgets and savings on this device.",
-  "start_url": "./",
-  "scope": "./",
-  "id": "./",
+  "start_url": "/Pocketly/",
+  "scope": "/Pocketly/",
+  "id": "/Pocketly/",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
   "orientation": "any",
   "background_color": "#f7f4ec",
   "theme_color": "#17392f",
   "lang": "en",
   "dir": "ltr",
-  "categories": ["finance", "productivity"],
+  "categories": [
+    "finance",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "./icon-192.png",
