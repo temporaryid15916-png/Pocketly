@@ -1523,7 +1523,7 @@ function shell(body) {
   const activeMore = ["budget", "insights", "months", "alerts", "settings", "more"].includes(ui.view);
   return `<div class="app">
     <aside class="sidebar">
-      <div class="brand"><div class="mark">P</div><div><b>POCKETLY</b><small>${esc(t("tagline"))}</small></div></div>
+      <div class="brand"><div class="mark"><img src="./icon-192.png" alt="POCKETLY App Icon"></div><div><b>POCKETLY</b><small>${esc(t("tagline"))}</small></div></div>
       <nav class="nav">
         ${navBtn("dash", "home", t("navDash"))}
         ${navBtn("history", "list", t("navHistory"))}
