@@ -369,6 +369,9 @@ const STR = {
     startFresh: "Start my ledger",
     loadSample: "Explore a sample month",
     privacyNote: "Records stay in this browser until you export them. Nothing is sent to a bank or a server.",
+    yourName: "Your name",
+    startLedger: "Create my ledger",
+    welcomeLead: "Track pocket money, daily spending and savings on this device. Private and offline-first.",
     sampleNote: "Sample numbers are labelled and can be erased from Settings.",
     lockTitle: "Pocketly is locked",
     lockHint: "Enter your 4-digit PIN.",
@@ -704,6 +707,9 @@ const STR = {
     startFresh: "খাতা শুরু করি",
     loadSample: "একটি নমুনা মাস দেখি",
     privacyNote: "রেকর্ড এই ব্রাউজারে থাকে, যতক্ষণ না আপনি এক্সপোর্ট করেন। ব্যাংক বা সার্ভারে কিছু যায় না।",
+    yourName: "আপনার নাম",
+    startLedger: "খাতা শুরু করুন",
+    welcomeLead: "এই ডিভাইসে পকেটের টাকা, দৈনিক খরচ ও সঞ্চয় ট্র্যাক করুন। ব্যক্তিগত ও অফলাইন-ফার্স্ট।",
     sampleNote: "নমুনা সংখ্যা চিহ্নিত। সেটিংস থেকে মুছে ফেলা যায়।",
     lockTitle: "Pocketly লক করা",
     lockHint: "৪ সংখ্যার পিন দিন।",
@@ -1069,6 +1075,7 @@ const ICONS = {
   moon: '<path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z"/>',
   download: '<path d="M12 4v10M7 10l5 5 5-5M5 20h14"/>',
   calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>',
+  check: '<path d="m5 12 4 4L19 6"/>',
 };
 
 let data = blankState();
@@ -1097,7 +1104,71 @@ const ui = {
   txType: "expense",
   whatExpense: "",
   whatIncome: "",
+  helpStep: 0,
+  installHelp: false,
 };
+
+let deferredInstallPrompt = null;
+let installPromptBound = false;
+function isStandaloneApp() {
+  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+function installButtonHtml() {
+  if (isStandaloneApp()) return `<span class="install-state">${ico("check")} ${esc(lang()==="bn"?"ইনস্টল করা আছে":"Installed")}</span>`;
+  return `<button class="btn install-btn" type="button" data-action="install">${ico("download")} ${esc(lang()==="bn"?"অ্যাপ ইনস্টল":"Install app")}</button>`;
+}
+function helpOverlayHtml() {
+  if (!ui.installHelp) return "";
+  const bn = lang() === "bn";
+  const steps = bn ? [
+    ["১. শুরু করুন", "প্রথমে আপনার নাম লিখে খাতা শুরু করুন। নিজের আসল হিসাব রাখতে Sample Month ব্যবহার করবেন না।"],
+    ["২. আয় যোগ করুন", "নিচের + বোতাম বা Add Income থেকে টাকা আসার তথ্য, পরিমাণ, তারিখ ও ক্যাটাগরি দিন।"],
+    ["৩. খরচ লিখুন", "Add Expense চাপুন। প্রতিটি খরচের পরিমাণ ও খাত নির্বাচন করে Save করুন।"],
+    ["৪. বাজেট ও সঞ্চয়", "Budget-এ মাসিক টাকা ও লক্ষ্য ঠিক করুন। Savings-এ লক্ষ্য তৈরি করে জমা/উত্তোলন হিসাব রাখুন। History ও Insights-এ পুরোনো হিসাব দেখুন।"]
+  ] : [
+    ["1. Get started", "Enter your name to create your ledger. Avoid Sample Month if you want to enter your real records."],
+    ["2. Add income", "Use the + button or Add Income. Enter the amount, date and category, then save."],
+    ["3. Record spending", "Choose Add Expense, enter the amount and category, and save each purchase."],
+    ["4. Budget and save", "Set your monthly plan in Budget. Create goals in Savings. Review past records in History and Insights."]
+  ];
+  const [title,body] = steps[Math.min(ui.helpStep,3)];
+  return `<div class="modal-back help-back" data-action="close-help"><section class="modal help-modal" role="dialog" aria-modal="true" data-action="noop"><div class="ph"><span class="eyebrow">${bn?"দ্রুত নির্দেশিকা":"QUICK GUIDE"}</span><button class="btn ghost" type="button" data-action="close-help">${ico("x")}</button></div><div class="help-progress"><i style="width:${(ui.helpStep+1)*25}%"></i></div><h2>${title}</h2><p class="note">${body}</p><div class="help-count">${bn?`ধাপ ${ui.helpStep+1} / ৪`:`Step ${ui.helpStep+1} of 4`}</div><div class="inline"><button class="btn ghost" type="button" data-action="help-prev" ${ui.helpStep===0?"disabled":""}>${bn?"পেছনে":"Back"}</button><button class="btn primary" type="button" data-action="help-next">${ui.helpStep===3?(bn?"শেষ":"Finish"):(bn?"পরের ধাপ":"Next step")}</button></div></section></div>`;
+}
+function installHelpHtml() {
+  const bn = lang() === "bn";
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const standalone = isStandaloneApp();
+  let body;
+  if (standalone) {
+    body = bn
+      ? "POCKETLY ইতিমধ্যে standalone মোডে চলছে। হোম স্ক্রিনের আইকন থেকে খুললে এটি অ্যাপের মতো কাজ করে।"
+      : "POCKETLY is already running in standalone mode. Opening from the home-screen icon keeps it app-like.";
+  } else if (isIOS) {
+    body = bn
+      ? "iPhone/iPad-এ: Safari-এ এই পেজ খুলুন → নিচের Share (□↑) চাপুন → “Add to Home Screen” বেছে নিন। হোম স্ক্রিনের আইকন থেকে খুললে এটি standalone অ্যাপের মতো চলবে। iOS-এ Android-স্টাইল ইনস্টল প্রম্পট নেই।"
+      : "On iPhone/iPad: open this page in Safari → tap Share (□↑) → choose “Add to Home Screen”. Launching from that icon opens POCKETLY in standalone mode. iOS does not support the Android-style install prompt.";
+  } else if (deferredInstallPrompt) {
+    body = bn
+      ? "আপনার ব্রাউজার ইনস্টল সাপোর্ট করে। নিচের বাটন চাপলে নেটিভ ইনস্টল প্রম্পট আসবে। ইনস্টলের পর অ্যাপটি standalone মোডে খুলবে।"
+      : "Your browser supports installation. Tap the button below to show the native install prompt. After install, POCKETLY opens in standalone mode.";
+  } else {
+    body = bn
+      ? "Chrome বা Edge-এ মেনু → “Install app” বা “Add to Home screen” দেখুন। কিছু ব্রাউজার বা HTTP সাইটে ইনস্টল অফার নাও করতে পারে। HTTPS + valid manifest প্রয়োজন।"
+      : "In Chrome or Edge, open the browser menu and look for “Install app” or “Add to Home screen”. Some browsers or non-HTTPS hosts will not offer install. A valid HTTPS origin and manifest are required.";
+  }
+  const tryBtn = (!standalone && !isIOS && deferredInstallPrompt)
+    ? `<button class="btn primary block" type="button" data-action="try-install">${bn ? "এখন ইনস্টল করুন" : "Install now"}</button>`
+    : (!standalone && isIOS)
+      ? `<div class="banner">${bn ? "Safari Share → Add to Home Screen ব্যবহার করুন।" : "Use Safari Share → Add to Home Screen."}</div>`
+      : `<button class="btn primary block" type="button" data-action="try-install">${bn ? "ইনস্টল চেষ্টা করুন" : "Try install"}</button>`;
+  return `<div class="modal-back" data-action="close-install"><section class="modal" role="dialog" aria-modal="true" data-action="noop"><div class="ph"><h2>${bn ? "POCKETLY ইনস্টল" : "Install POCKETLY"}</h2><button class="btn ghost" type="button" data-action="close-install">${ico("x")}</button></div><p class="note">${body}</p><div class="banner">${bn ? "ইনস্টলের পর অ্যাপটি আলাদা উইন্ডোতে খুলবে। আপনার হিসাব এই ডিভাইসের ব্রাউজারেই থাকবে — কোনো সার্ভারে পাঠানো হয় না।" : "After installation POCKETLY opens in its own window. Your ledger stays on this device — nothing is sent to a server."}</div>${tryBtn}</section></div>`;
+}
+function bindInstallPrompt() {
+  if (installPromptBound) return;
+  installPromptBound = true;
+  window.addEventListener("beforeinstallprompt", (event) => { event.preventDefault(); deferredInstallPrompt = event; render(); });
+  window.addEventListener("appinstalled", () => { deferredInstallPrompt = null; toast(lang()==="bn"?"POCKETLY ইনস্টল হয়েছে":"POCKETLY installed"); render(); });
+}
 
 function ico(name) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
@@ -1471,7 +1542,7 @@ function shell(body) {
     <div class="main">
       ${data.sample ? `<div class="banner">${esc(t("sampleBanner"))}</div>` : ""}
       <header class="top"><div><div class="eyebrow">${esc(t("kicker"))}</div><h1>${esc(titleFor(ui.view))}</h1></div>
-        <div>${data.profile?.pin ? `<button class="btn ghost" type="button" data-action="lock">${ico("lock")} ${esc(t("lock"))}</button>` : ""}</div>
+        <div class="top-actions"><button class="btn ghost help-btn" type="button" data-action="help">${ico("list")} ${esc(lang()==="bn"?"কীভাবে ব্যবহার করবেন":"How to use")}</button>${installButtonHtml()}${data.profile?.pin ? `<button class="btn ghost" type="button" data-action="lock">${ico("lock")} ${esc(t("lock"))}</button>` : ""}</div>
       </header>
       <div class="content">${body}</div>
     </div>
@@ -1483,6 +1554,7 @@ function shell(body) {
       <button class="tab ${activeMore ? "on" : ""}" type="button" data-action="nav" data-view="more">${ico("gear")}<span>${esc(t("navMore"))}</span>${unread() ? `<span class="badge">${unread()}</span>` : ""}</button>
     </nav>
     ${overlay()}
+    ${helpOverlayHtml()}${ui.modal === "install-help" ? installHelpHtml() : ""}
   </div>${ui.toast ? `<div id="toast" class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
 }
 function titleFor(view) {
@@ -1496,22 +1568,31 @@ function viewDash() {
   const used = s.spendable > 0 ? Math.min(100, (s.expenses / s.spendable) * 100) : (s.expenses > 0 ? 100 : 0);
   const recent = data.transactions.slice().sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).slice(0, 5);
   const saved = totalGoalSavings(data.transactions, data.goals);
+  const overToday = s.spentToday > s.todayGuide && s.spentToday > 0;
   return `<section class="hero">
-      <div><div class="eyebrow">${esc(t("available"))}</div><div class="amount">${esc(money(s.available))}</div><p class="hint">${esc(t("balanceNote"))}</p></div>
+      <div>
+        <div class="eyebrow">${esc(t("available"))}</div>
+        <div class="amount">${esc(money(s.available))}</div>
+        <p class="hint">${esc(t("balanceNote"))}</p>
+      </div>
       <div class="today-pair">
-        <div><span class="eyebrow">${esc(t("todayRecommend"))}</span><strong>${esc(money(s.todayGuide))}</strong><span class="hint">${esc(data.budget.mode === "fixed" ? t("fixedUsage") : t("smartUsage"))}</span></div>
-        <div><span class="eyebrow">${esc(t("todayActual"))}</span><strong>${esc(money(s.spentToday))}</strong><span class="hint">${s.spentToday > s.todayGuide && s.spentToday > 0 ? esc(t("overToday")) : esc(t("withinToday"))}</span></div>
+        <div>
+          <span class="eyebrow">${esc(t("todayRecommend"))}</span>
+          <strong>${esc(money(s.todayGuide))}</strong>
+          <span class="hint">${esc(data.budget.mode === "fixed" ? t("fixedUsage") : t("smartUsage"))}</span>
+        </div>
+        <div>
+          <span class="eyebrow">${esc(t("todayActual"))}</span>
+          <strong style="${overToday ? "color:var(--red)" : ""}">${esc(money(s.spentToday))}</strong>
+          <span class="hint">${overToday ? esc(t("overToday")) : esc(t("withinToday"))}</span>
+        </div>
       </div>
     </section>
     <section class="metrics">
-      ${metric(t("monthlyStart"), money(s.starting + s.carry))}
       ${metric(t("totalIncome"), money(s.income))}
       ${metric(t("totalExpenses"), money(s.expenses))}
       ${metric(t("remainingBudget"), money(s.remaining))}
       ${metric(t("savingsBalance"), money(saved))}
-      ${metric(t("daysLeft"), String(s.daysLeft))}
-      ${metric(t("navBudget"), data.budget.mode === "fixed" ? t("fixedMode") : t("smartMode"))}
-      ${metric(t("broughtIn"), money(s.carry))}
     </section>
     <section class="panel">
       <div class="ph"><h2>${esc(t("budgetProgress"))}</h2><button class="link" type="button" data-action="nav" data-view="budget">${esc(t("viewAll"))}</button></div>
@@ -1819,28 +1900,33 @@ function viewMore() {
   </div>`;
 }
 function viewWelcome() {
+  const bn = lang() === "bn";
   return `<div class="welcome">
-    <div class="stack">
-      <div class="lang-switch">
-        <button type="button" class="${lang() === "en" ? "on" : ""}" data-action="lang" data-lang="en">English</button>
-        <button type="button" class="${lang() === "bn" ? "on" : ""}" data-action="lang" data-lang="bn">বাংলা</button>
+    <div class="welcome-card">
+      <div class="mark">P</div>
+      <h1>POCKETLY</h1>
+      <p class="lead">${esc(t("welcomeLead") || t("tagline"))}</p>
+      <p class="note" style="text-align:center">${esc(t("privacyNote"))}</p>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" class="${lang()==="en"?"on":""}" data-action="set-lang" data-lang="en">English</button>
+        <button type="button" class="${lang()==="bn"?"on":""}" data-action="set-lang" data-lang="bn">বাংলা</button>
       </div>
-      <div class="brand"><div class="mark">P</div><div><b>POCKETLY</b><small>${esc(t("tagline"))}</small></div></div>
-      <h1>${esc(t("welcomeTitle"))}</h1>
-      <p class="note">${esc(t("welcomeBody"))}</p>
-      <form data-form="welcome" class="stack">
-        <label class="field">${esc(t("yourName"))}<input id="profile-name" name="name" maxlength="40" placeholder="${esc(t("namePh"))}" autocomplete="name"></label>
-        <button class="btn primary block" type="submit">${esc(t("startFresh"))}</button>
-        <button class="btn ghost block" type="button" data-action="sample">${esc(t("loadSample"))}</button>
+      <form data-form="welcome" class="fields">
+        <label class="field">${esc(t("yourName") || "Your name")}
+          <input name="name" autocomplete="name" maxlength="40" placeholder="${esc(bn ? "আপনার নাম" : "Your name")}" required>
+        </label>
+        <button class="btn primary block" type="submit">${esc(t("startLedger") || (bn ? "খাতা শুরু করুন" : "Create my ledger"))}</button>
       </form>
-      <p class="note">${esc(t("privacyNote"))} ${esc(t("sampleNote"))}</p>
+      <button class="btn ghost block" type="button" data-action="sample">${esc(t("loadSample"))}</button>
+      <p class="note" style="text-align:center">${esc(t("sampleNote"))}</p>
+      <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap">
+        ${installButtonHtml()}
+        <button class="btn ghost" type="button" data-action="help">${ico("list")} ${esc(bn ? "কীভাবে ব্যবহার করবেন" : "How to use")}</button>
+      </div>
     </div>
-    <aside class="example-card">
-      <div class="eyebrow">${esc(t("previewLabel"))}</div>
-      <b>৳150</b>
-      <p>${esc(t("habits"))}</p>
-      <p class="note">৳6,000 − ৳500 − ৳1,000 = ৳4,500 · ৳150 × 30 ${esc(t("days"))}. ${esc(lang() === "bn" ? "উদাহরণ, আপনার হিসাব নয়।" : "Example, not your ledger.")}</p>
-    </aside>
+    ${helpOverlayHtml()}
+    ${ui.modal === "install-help" ? installHelpHtml() : ""}
+    ${ui.toast ? `<div id="toast" class="toast" role="status">${esc(ui.toast)}</div>` : ""}
   </div>`;
 }
 function viewLock() {
@@ -2129,6 +2215,32 @@ function onClick(event) {
   if (!el || !event.currentTarget.contains(el)) return;
   const action = el.dataset.action;
   if (action === "noop") return;
+  if (action === "help") { ui.helpStep = 0; ui.installHelp = true; render(); return; }
+  if (action === "close-help") { ui.installHelp = false; render(); return; }
+  if (action === "help-prev") { ui.helpStep = Math.max(0, ui.helpStep - 1); render(); return; }
+  if (action === "help-next") { if (ui.helpStep >= 3) ui.installHelp = false; else ui.helpStep += 1; render(); return; }
+  if (action === "install") {
+    if (isStandaloneApp()) return toast(lang()==="bn"?"অ্যাপটি ইতোমধ্যে ইনস্টল করা আছে":"App is already installed");
+    if (deferredInstallPrompt) {
+      void deferredInstallPrompt.prompt().then(() => deferredInstallPrompt.userChoice).then((choice) => {
+        deferredInstallPrompt = null;
+        if (choice?.outcome === "accepted") toast(lang()==="bn"?"ইনস্টল শুরু হয়েছে":"Installation started");
+        render();
+      });
+    } else { ui.modal = "install-help"; render(); }
+    return;
+  }
+  if (action === "close-install") { ui.modal = null; render(); return; }
+  if (action === "try-install") {
+    if (deferredInstallPrompt) {
+      void deferredInstallPrompt.prompt().then(() => deferredInstallPrompt.userChoice).then((choice) => {
+        deferredInstallPrompt = null; ui.modal = null;
+        if (choice?.outcome === "accepted") toast(lang()==="bn"?"ইনস্টল শুরু হয়েছে":"Installation started");
+        render();
+      });
+    } else toast(lang()==="bn"?"ব্রাউজারের মেনু থেকে Install নির্বাচন করুন":"Use your browser menu to install this app");
+    return;
+  }
   if (action === "nav") return go(el.dataset.view);
   if (action === "close") {
     ui.modal = null;
@@ -2190,10 +2302,19 @@ function onClick(event) {
     render();
     return;
   }
+  if (action === "set-lang") {
+    const l = (event.target.closest("[data-lang]") || el).dataset.lang;
+    data.settings.language = l === "bn" ? "bn" : "en";
+    if (data.profile) save();
+    applyTheme();
+    render();
+    return;
+  }
   if (action === "sample" || action === "clear-sample") {
     if (action === "clear-sample") { ui.confirm = { body: t("startOverConfirm"), action: "do-erase" }; render(); return; }
-    const name = document.getElementById("profile-name")?.value.trim() || "";
-    if (!name) return toast(t("nameInvalid"));
+    const form = document.querySelector('form[data-form="welcome"]');
+    const fromForm = form ? String(new FormData(form).get("name") || "").trim() : "";
+    const name = fromForm || document.getElementById("profile-name")?.value.trim() || (lang() === "bn" ? "নমুনা" : "Sample");
     startLedger(name, true);
     return;
   }
@@ -2388,10 +2509,11 @@ function boot() {
       if (data.settings.theme === "system") render();
     });
   }
+  bindInstallPrompt();
   load();
   now = dhakaParts();
   if (data.profile) { ensureMonth(); syncAlerts(); }
-  if (document.documentElement.dataset.pocketly === "standalone" && "serviceWorker" in navigator) {
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
   }
   render();
